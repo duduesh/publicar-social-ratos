@@ -75,9 +75,8 @@ Se escolheu Graph API:
    > 2. No app, ativa o produto 'Instagram Graph API'
    > 3. Vai no Graph API Explorer (developers.facebook.com/tools/explorer/)
    > 4. Seleciona teu app e gera um token com estes escopos:
-   >    - instagram_content_publish
-   >    - instagram_basic
-   >    - pages_read_engagement
+   >    - instagram_business_basic
+   >    - instagram_business_content_publish
    > 5. Cola o token aqui"
 
 2. **Converter token pra longa duração (60 dias):**
