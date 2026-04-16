@@ -18,16 +18,30 @@ const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const USER_ID = process.env.INSTAGRAM_USER_ID;
 const GRAPH = "https://graph.instagram.com/v21.0";
 
-// --- Upload imagem pro catbox.moe (gratuito, sem conta, sem API key) ---
-function uploadToCatbox(filePath) {
+// --- Upload imagem (catbox.moe com fallback pra uguu.se) ---
+function uploadFile(filePath) {
   const abs = path.resolve(filePath);
   if (!fs.existsSync(abs)) throw new Error(`Arquivo nao encontrado: ${abs}`);
+
+  // Tenta catbox primeiro
+  try {
+    const result = execSync(
+      `curl -s -F "reqtype=fileupload" -F "fileToUpload=@${abs}" "https://catbox.moe/user/api.php"`,
+      { timeout: 60000 }
+    ).toString().trim();
+    if (result.startsWith("https://")) return result;
+  } catch (e) { /* catbox falhou, tenta uguu */ }
+
+  // Fallback: uguu.se
   const result = execSync(
-    `curl -s -F "reqtype=fileupload" -F "fileToUpload=@${abs}" "https://catbox.moe/user/api.php"`,
-    { timeout: 120000 }
+    `curl -s -F "files[]=@${abs}" "https://uguu.se/upload"`,
+    { timeout: 60000 }
   ).toString().trim();
-  if (!result.startsWith("https://")) throw new Error(`Catbox erro: ${result}`);
-  return result;
+  try {
+    const json = JSON.parse(result);
+    if (json.files && json.files[0] && json.files[0].url) return json.files[0].url;
+  } catch (e) { /* parse falhou */ }
+  throw new Error(`Upload falhou (catbox + uguu): ${result}`);
 }
 
 // --- Criar container de imagem (item de carrossel ou post unico) ---
@@ -143,7 +157,7 @@ async function main() {
   // --- VIDEO (Reels) ---
   if (isVideo) {
     console.log(`Fazendo upload do video pro catbox...`);
-    const videoUrl = uploadToCatbox(opts.video);
+    const videoUrl = uploadFile(opts.video);
     console.log(`  OK: ${videoUrl}`);
 
     if (opts.dryRun) {
@@ -169,7 +183,7 @@ async function main() {
   // --- IMAGEM UNICA ---
   if (isSingleImage) {
     console.log(`Fazendo upload da imagem pro catbox...`);
-    const imageUrl = uploadToCatbox(opts.images[0]);
+    const imageUrl = uploadFile(opts.images[0]);
     console.log(`  OK: ${path.basename(opts.images[0])}`);
 
     if (opts.dryRun) {
@@ -193,7 +207,7 @@ async function main() {
   console.log(`Fazendo upload de ${opts.images.length} imagens pro catbox...`);
   const imageUrls = [];
   for (const img of opts.images) {
-    const url = uploadToCatbox(img);
+    const url = uploadFile(img);
     console.log(`  OK: ${path.basename(img)}`);
     imageUrls.push(url);
   }
